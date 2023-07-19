@@ -545,6 +545,39 @@ defmodule Sentry.LoggerBackendTest do
     end)
   end
 
+  test "handles :callers with remote nodes" do
+    caller = self()
+    Logger.configure_backend(Sentry.LoggerBackend, capture_log_messages: true)
+
+    erroring_fn = fn ->
+      require Logger;
+      Logger.configure_backend(Sentry.LoggerBackend, capture_log_messages: true)
+      bypass = Bypass.open()
+      modify_env(:sentry, dsn: "http://public:secret@localhost:#{bypass.port}/1")
+      Logger.error("testing", callers: [caller, nil])
+    end
+
+    nodes = LocalCluster.start_nodes(:spawn, 2, [
+      files: [
+        __ENV__.file
+      ]
+    ])
+
+    [node1, node2] = nodes
+
+    assert Node.ping(node1) == :pong
+    assert Node.ping(node2) == :pong
+
+    Node.spawn(node1, fn ->
+      send(caller, :from_node_1)
+    end)
+
+    Node.spawn(node2, erroring_fn)
+
+    assert_receive :from_node_1
+    assert_receive :from_node_2
+  end
+
   test "sets event level to Logger message level" do
     Logger.configure_backend(Sentry.LoggerBackend, level: :warn, capture_log_messages: true)
     bypass = Bypass.open()

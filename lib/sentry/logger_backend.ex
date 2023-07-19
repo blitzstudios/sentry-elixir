@@ -44,6 +44,20 @@ defmodule Sentry.LoggerBackend do
         capture_log_messages: true
   """
   @behaviour :gen_event
+  @excluded_default_keys [
+    :erl_level,
+    :application,
+    :domain,
+    :file,
+    :function,
+    :line,
+    :mfa,
+    :module,
+    :pid,
+    :gl,
+    :time,
+    :crash_reason
+  ]
 
   defstruct level: :error, metadata: [], excluded_domains: [:cowboy], capture_log_messages: false
 
@@ -153,10 +167,14 @@ defmodule Sentry.LoggerBackend do
   defp excluded_domain?(_, _), do: false
 
   defp logger_metadata(meta, state) do
-    for key <- state.metadata,
-        value = meta[key],
-        do: {key, value},
-        into: %{}
+    if state.metadata == :all do
+      res = Map.new(meta) |> Map.drop(@excluded_default_keys)
+    else
+      for key <- state.metadata,
+          value = meta[key],
+          do: {key, value},
+          into: %{}
+    end
   end
 
   @spec elixir_logger_level_to_sentry_level(Logger.level()) :: String.t()

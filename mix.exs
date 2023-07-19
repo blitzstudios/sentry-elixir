@@ -7,6 +7,9 @@ defmodule Sentry.Mixfile do
   def project do
     [
       app: :sentry,
+      aliases: [
+        test: "test --no-start"
+      ],
       version: @version,
       elixir: "~> 1.10",
       description: "The Official Elixir client for Sentry",
@@ -46,7 +49,8 @@ defmodule Sentry.Mixfile do
       {:ex_doc, "~> 0.23.0", only: :dev},
       {:bypass, "~> 2.0", only: [:test]},
       {:phoenix, "~> 1.5", only: [:test]},
-      {:phoenix_html, "~> 2.0", only: [:test]}
+      {:phoenix_html, "~> 2.0", only: [:test]},
+      {:local_cluster, "~> 1.2", only: [:test]},
     ]
   end
 
