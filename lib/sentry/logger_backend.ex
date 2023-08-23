@@ -146,13 +146,21 @@ defmodule Sentry.LoggerBackend do
 
   defp get_sentry_from_callers(_), do: %{}
 
+  # if you include a pid in the logger metadata, such as "callers" to build your own stacktrace, there might be issues with the Json encoder
+  # Forces a string encoding on all the metadata values, especially the :extras
+  defp format_logger_metadata_to_json(meta, state) do
+    default = logger_metadata(meta, state)
+    Enum.reduce(default, %{}, fn {key, value}, acc ->
+      Map.put(acc, key, "#{inspect(value)}")
+    end)
+  end
+
   defp build_opts(level, meta, state) do
-    default_extra = %{logger_metadata: logger_metadata(meta, state), logger_level: level}
+    default_extra = %{logger_metadata: format_logger_metadata_to_json(meta, state), logger_level: level}
 
     sentry =
       (meta[:sentry] || get_sentry_from_callers(meta[:callers] || []))
       |> Map.update(:extra, default_extra, &Map.merge(&1, default_extra))
-
     [
       event_source: :logger,
       level: elixir_logger_level_to_sentry_level(level),
@@ -172,7 +180,7 @@ defmodule Sentry.LoggerBackend do
     else
       for key <- state.metadata,
           value = meta[key],
-          do: {key, value},
+          do: {key, inspect(value)},
           into: %{}
     end
   end
